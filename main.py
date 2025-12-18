@@ -3,57 +3,40 @@ import sqlite3
 import os
 import time
 
-# Инициализация приложения
 app = Flask(__name__)
+API_SECRET = "TITAN_OMEGA_SECRET_KEY_999" # Твой пароль
 
-# ПАРОЛЬ ДЛЯ ЗАЩИТЫ (Придумайте свой и вставьте в Lua скрипт тоже)
-API_SECRET = "TITAN_OMEGA_SECRET_KEY_999"
-
-# Создаем базу данных при запуске
 def init_db():
     conn = sqlite3.connect('titan_database.db')
     c = conn.cursor()
-    # Создаем таблицу банов
     c.execute('''CREATE TABLE IF NOT EXISTS bans
                  (user_id TEXT PRIMARY KEY, reason TEXT, date INTEGER)''')
     conn.commit()
     conn.close()
 
-# Проверка ключа доступа
 def check_auth():
     key = request.headers.get('Authorization')
-    if key != API_SECRET:
-        return False
+    if key != API_SECRET: return False
     return True
 
-# ГЛАВНАЯ СТРАНИЦА (Чтобы проверить, работает ли сервер)
 @app.route('/')
-def home():
-    return "TITAN OBLITERATOR SERVER IS RUNNING"
+def home(): return "TITAN SERVER ONLINE (NO DISCORD)"
 
-# API: ПРОВЕРКА БАНА
 @app.route('/check', methods=['GET'])
 def check_ban():
     if not check_auth(): return jsonify({"error": "Unauthorized"}), 403
-    
     user_id = request.args.get('id')
-    
     conn = sqlite3.connect('titan_database.db')
     c = conn.cursor()
     c.execute("SELECT * FROM bans WHERE user_id=?", (user_id,))
     data = c.fetchone()
     conn.close()
-    
-    if data:
-        return jsonify({"banned": True, "reason": data[1], "date": data[2]})
-    else:
-        return jsonify({"banned": False})
+    if data: return jsonify({"banned": True, "reason": data[1]})
+    else: return jsonify({"banned": False})
 
-# API: БАН ИГРОКА
 @app.route('/ban', methods=['POST'])
 def ban_user():
     if not check_auth(): return jsonify({"error": "Unauthorized"}), 403
-    
     data = request.json
     user_id = str(data.get('id'))
     reason = data.get('reason')
@@ -64,15 +47,12 @@ def ban_user():
         c.execute("INSERT OR REPLACE INTO bans (user_id, reason, date) VALUES (?, ?, ?)",
                   (user_id, reason, int(time.time())))
         conn.commit()
-        return jsonify({"status": "success", "msg": "Player Destroyed"})
-    except Exception as e:
-        return jsonify({"status": "error", "msg": str(e)})
-    finally:
-        conn.close()
+        return jsonify({"status": "success"})
+    except Exception as e: return jsonify({"status": "error", "msg": str(e)})
+    finally: conn.close()
 
-# ЗАПУСК
 if __name__ == '__main__':
     init_db()
-    # Запускаем на порту, который выдаст хостинг, или 5000
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
